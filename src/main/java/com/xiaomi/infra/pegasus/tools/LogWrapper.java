@@ -26,11 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // The wrapper base log4j2:
-// 1. default use pegasus custom log config, and user can change the
-// `LoggerOptions.rollingFileSaveName`
+// 1. default, `LoggerOptions.enablePegasusCustomLog = true`.user will use pegasus custom log
+// config, but user can change the `LoggerOptions.rollingFileSaveName`
 // to set log path.
-// 2. if `LoggerOptions.enablePegasusCustomLog = false`, use the xml config.
-// 3. if xml config just exist same appender name, directly use xml config.
+// 2. if `LoggerOptions.enablePegasusCustomLog = false`, user will use the xml config.
+// 3. if xml config just exist same appender name, directly use xml config, though you set
+// `LoggerOptions.enablePegasusCustomLog = true`.
 // 4. `LoggerOptions` expose `enablePegasusCustomLog` and `rollingFileSaveName` to user by
 // `pegasus.properties`.
 public class LogWrapper {
