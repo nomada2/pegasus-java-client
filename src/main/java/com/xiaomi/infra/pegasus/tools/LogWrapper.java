@@ -1,3 +1,6 @@
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+// This source code is licensed under the Apache License Version 2.0, which
+// can be found in the LICENSE file in the root directory of this source tree.
 package com.xiaomi.infra.pegasus.tools;
 
 import java.nio.charset.Charset;
@@ -22,47 +25,74 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// The wrapper base log4j2:
+// 1. default use pegasus custom log config, and user can change the
+// `LoggerOptions.rollingFileSaveName`
+// to set log path.
+// 2. if `LoggerOptions.enablePegasusCustomLog = false`, use the xml config.
+// 3. if xml config just exist same appender name, directly use xml config.
+// 4. `LoggerOptions` expose `enablePegasusCustomLog` and `rollingFileSaveName` to user by
+// `pegasus.properties`.
 public class LogWrapper {
 
-  private static PegasusRollingFileLogger pegasusLogger;
+  private static final Object singletonLock = new Object();
+  private static final LoggerOptions defaultLoggerOptions = new LoggerOptions();
+  private static PegasusRollingFileLogger singletonPegasusLogger;
 
   public static Logger getRollingFileLogger(Class clazz) {
-    LoggerOptions loggerOptions = new LoggerOptions();
-    PegasusRollingFileLogger logger = createRollingFileAppender(loggerOptions);
-    return logger.getLogger(clazz.getName());
+    return getRollingFileLogger(defaultLoggerOptions, clazz);
   }
 
-  // TODO 单例
-  private static PegasusRollingFileLogger createRollingFileAppender(LoggerOptions loggerOptions) {
-    if (pegasusLogger != null) {
-      return pegasusLogger;
+  public static Logger getRollingFileLogger(LoggerOptions loggerOptions, Class clazz) {
+    if (!loggerOptions.isEnablePegasusCustomLog()) {
+      return LoggerFactory.getLogger(clazz);
     }
+
+    if (singletonPegasusLogger != null) {
+      return singletonPegasusLogger.getLogger(clazz.getName());
+    }
+
+    synchronized (singletonLock) {
+      if (singletonPegasusLogger != null) {
+        return singletonPegasusLogger.getLogger(clazz.getName());
+      }
+
+      singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+      return singletonPegasusLogger.getLogger(clazz.getName());
+    }
+  }
+
+  private static PegasusRollingFileLogger createRollingFileAppender(LoggerOptions loggerOptions) {
 
     LoggerContext loggerContext = (LoggerContext) LogManager.getContext(false /*todo*/);
     Configuration configuration = loggerContext.getConfiguration();
 
-    if ((configuration.getAppender(loggerOptions.rollingFileAppenderName)) != null
-        && configuration.getAppender(loggerOptions.rollingFileAppenderName)
+    // TODO(jiashuo1) if xml has same name appender name, now choose the xml config.
+    if ((configuration.getAppender(loggerOptions.getRollingFileAppenderName())) != null
+        && configuration.getAppender(loggerOptions.getRollingFileAppenderName())
             instanceof RollingFileAppender) {
-      return new PegasusRollingFileLogger(loggerContext, loggerOptions.rollingFileAppenderName);
+      singletonPegasusLogger = new PegasusRollingFileLogger();
+      return singletonPegasusLogger;
     }
 
     PatternLayout patternLayout =
         PatternLayout.newBuilder()
             .withCharset(Charset.forName("UTF-8"))
             .withConfiguration(configuration)
-            .withPattern(loggerOptions.layoutPattern)
+            .withPattern(loggerOptions.getLayoutPattern())
             .build();
 
     PathCondition lastModified =
-        IfLastModified.createAgeCondition(Duration.parse(loggerOptions.deleteAge), null);
+        IfLastModified.createAgeCondition(Duration.parse(loggerOptions.getDeleteAge()), null);
     PathCondition fileNameMatch =
         IfFileName.createNameCondition(
-            loggerOptions.deleteFileNamePattern, loggerOptions.deleteFileNamePattern, null);
+            loggerOptions.getDeleteFileNamePattern(),
+            loggerOptions.getDeleteFileNamePattern(),
+            null);
     PathCondition[] pathConditions = new PathCondition[] {fileNameMatch, lastModified};
     DeleteAction action =
         DeleteAction.createDeleteAction(
-            loggerOptions.deleteFilePath,
+            loggerOptions.getDeleteFilePath(),
             false,
             1,
             false,
@@ -74,19 +104,20 @@ public class LogWrapper {
 
     RolloverStrategy strategy =
         DefaultRolloverStrategy.newBuilder()
-            .withMax(loggerOptions.maxFileNumber)
-            .withMin(loggerOptions.minFileNumber)
+            .withMax(loggerOptions.getMaxFileNumber())
+            .withMin(loggerOptions.getMinFileNumber())
             .withCustomActions(actions)
             .build();
 
-    TriggeringPolicy policy = SizeBasedTriggeringPolicy.createPolicy(loggerOptions.singleFileSize);
+    TriggeringPolicy policy =
+        SizeBasedTriggeringPolicy.createPolicy(loggerOptions.getSingleFileSize());
 
     RollingFileAppender rollingFileAppender =
         RollingFileAppender.newBuilder()
-            .setName(loggerOptions.rollingFileAppenderName)
+            .setName(loggerOptions.getRollingFileAppenderName())
             .withImmediateFlush(true)
-            .withFileName(loggerOptions.rollingFileSaveName)
-            .withFilePattern(loggerOptions.rollingFileSavePattern)
+            .withFileName(loggerOptions.getRollingFileSaveName())
+            .withFilePattern(loggerOptions.getRollingFileSavePattern())
             .setLayout(patternLayout)
             .withPolicy(policy)
             .withStrategy(strategy)
@@ -97,73 +128,181 @@ public class LogWrapper {
     configuration.addAppender(rollingFileAppender);
 
     AppenderRef ref =
-        AppenderRef.createAppenderRef(loggerOptions.rollingFileAppenderName, null, null);
+        AppenderRef.createAppenderRef(loggerOptions.getRollingFileAppenderName(), null, null);
     AppenderRef[] refs = new AppenderRef[] {ref};
 
     LoggerConfig loggerConfig =
         LoggerConfig.createLogger(
             false,
-            Level.ALL,
-            loggerOptions.rollingFileAppenderName,
+            loggerOptions.getRollingLogLevel(),
+            loggerOptions.getRollingFileAppenderName(),
             "true",
             refs,
             null,
             configuration,
             null);
     loggerConfig.addAppender(rollingFileAppender, null, null);
-    configuration.addLogger(loggerOptions.rollingFileAppenderName, loggerConfig);
+    configuration.addLogger(loggerOptions.getRollingFileAppenderName(), loggerConfig);
     loggerContext.updateLoggers(configuration);
-    return new PegasusRollingFileLogger(loggerContext, loggerOptions.rollingFileAppenderName);
+    singletonPegasusLogger =
+        new PegasusRollingFileLogger(loggerContext, loggerOptions.getRollingFileAppenderName());
+    return singletonPegasusLogger;
   }
 
-  public static void main(String[] args) throws InterruptedException {
-    Logger loggerLogWrapper = LogWrapper.getRollingFileLogger(LogWrapper.class);
-    Logger loggerString = LogWrapper.getRollingFileLogger(String.class);
-    int n = 5;
-    while (n-- > 0) {
-      Thread.sleep(1000);
-      loggerLogWrapper.warn("LogWrapper = {}", n);
-    }
-
-    n = 5;
-    while (n-- > 0) {
-      Thread.sleep(1000);
-      loggerString.warn("String = {}", n);
-    }
+  // only test for reviewing to show usage.
+  public static void main(String[] args) {
+    Logger logger = LogWrapper.getRollingFileLogger(LogWrapper.class);
+    logger.warn("this is test!");
   }
 }
 
 class LoggerOptions {
+
+  private static final boolean DEFAULT_ENABLE_PEGASUS_CUSTOM_LOG = true;
+
+  private static final Level DEFAULT_LEVEL = Level.ALL;
+
+  private static final String DEFAULT_LAYOUT_PATTERN =
+      "%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n";
+
+  private static final String DEFAULT_DELETE_AGE = "P7D";
+  private static final String DEFAULT_DELETE_FILE_PATH = "log/pegasus";
+  private static final String DEFAULT_DELETE_FILE_NAME_PATTERN = "pegasus.client.log*";
+
+  private static final String DEFAULT_MAX_FILE_NUMBER = "5";
+  private static final String DEFAULT_MIN_FILE_NUMBER = "1";
+
+  private static final String DEFAULT_SINGLE_FILE_SIZE = "10";
+
+  private static final String DEFAULT_ROLLING_FILE_APPENDER_NAME = "pegasusRolling";
+  private static final String DEFAULT_ROLLING_FILE_SAVE_NAME = "log/pegasus/pegasus.client.log";
+  private static final String DEFAULT_ROLLING_FILE_SAVE_PATTERN =
+      "log/pegasus/pegasus.client.log.%d{yyyy-MM-dd.HH:mm:ss}";
+
+  private Level rollingLogLevel;
+  private boolean enablePegasusCustomLog;
   // PatternLayout
-  String layoutPattern = "%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n";
+  private String layoutPattern;
   // DeleteAction
-  String deleteAge = "PT5S";
-  String deleteFilePath = "log/pegasus";
-  String deleteFileNamePattern = "pegasus.client.log*";
+  private String deleteAge;
+  private String deleteFilePath;
+  private String deleteFileNamePattern;
   // RolloverStrategy
-  String maxFileNumber = "5";
-  String minFileNumber = "1";
+  private String maxFileNumber;
+  private String minFileNumber;
   // SizeBasedTriggeringPolicy
-  String singleFileSize = "10";
+  private String singleFileSize;
   // RollingFileAppender
-  String rollingFileAppenderName = "pegasusRolling";
-  String rollingFileSaveName = "log/pegasus/pegasus.client.log";
-  String rollingFileSavePattern = "log/pegasus/pegasus.client.log.%d{yyyy-MM-dd.HH:mm:ss}";
+  private String rollingFileAppenderName;
+  private String rollingFileSaveName;
+  private String rollingFileSavePattern;
+
+  public LoggerOptions() {
+    this.enablePegasusCustomLog = DEFAULT_ENABLE_PEGASUS_CUSTOM_LOG;
+    this.rollingLogLevel = DEFAULT_LEVEL;
+    this.layoutPattern = DEFAULT_LAYOUT_PATTERN;
+    this.deleteAge = DEFAULT_DELETE_AGE;
+    this.deleteFilePath = DEFAULT_DELETE_FILE_PATH;
+    this.deleteFileNamePattern = DEFAULT_DELETE_FILE_NAME_PATTERN;
+    this.maxFileNumber = DEFAULT_MAX_FILE_NUMBER;
+    this.minFileNumber = DEFAULT_MIN_FILE_NUMBER;
+    this.singleFileSize = DEFAULT_SINGLE_FILE_SIZE;
+    this.rollingFileAppenderName = DEFAULT_ROLLING_FILE_APPENDER_NAME;
+    this.rollingFileSaveName = DEFAULT_ROLLING_FILE_SAVE_NAME;
+    this.rollingFileSavePattern = DEFAULT_ROLLING_FILE_SAVE_PATTERN;
+  }
+
+  public LoggerOptions setEnablePegasusCustomLog(boolean enablePegasusCustomLog) {
+    this.enablePegasusCustomLog = enablePegasusCustomLog;
+    return this;
+  }
+
+  public void setRollingFileSaveName(String rollingFileSaveName) {
+    this.rollingFileSaveName = rollingFileSaveName;
+    // TODO rollingFileSavePattern, deleteFilePath, deleteFileNamePattern need be re-set base
+    // rollingFileSaveName
+  }
+
+  public boolean isEnablePegasusCustomLog() {
+    return enablePegasusCustomLog;
+  }
+
+  public Level getRollingLogLevel() {
+    return rollingLogLevel;
+  }
+
+  public String getLayoutPattern() {
+    return layoutPattern;
+  }
+
+  public String getDeleteAge() {
+    return deleteAge;
+  }
+
+  public String getDeleteFilePath() {
+    return deleteFilePath;
+  }
+
+  public String getDeleteFileNamePattern() {
+    return deleteFileNamePattern;
+  }
+
+  public String getMaxFileNumber() {
+    return maxFileNumber;
+  }
+
+  public String getMinFileNumber() {
+    return minFileNumber;
+  }
+
+  public String getSingleFileSize() {
+    return singleFileSize;
+  }
+
+  public String getRollingFileAppenderName() {
+    return rollingFileAppenderName;
+  }
+
+  public String getRollingFileSaveName() {
+    return rollingFileSaveName;
+  }
+
+  public String getRollingFileSavePattern() {
+    return rollingFileSavePattern;
+  }
 }
 
 class PegasusRollingFileLogger {
+
+  private boolean useXMLConfig;
 
   public LoggerConfig loggerConfig;
   public LoggerContext loggerContext;
   public Configuration configuration;
 
+  public PegasusRollingFileLogger() {
+    this.useXMLConfig = true;
+  }
+
   public PegasusRollingFileLogger(LoggerContext loggerContext, String appenderName) {
+    this.useXMLConfig = false;
     this.loggerContext = loggerContext;
     this.configuration = loggerContext.getConfiguration();
     this.loggerConfig = configuration.getLoggerConfig(appenderName);
   }
 
   public Logger getLogger(String loggerName) {
+    // TODO(jiashuo1) if xml has same name appender name, now choose the xml config
+    if (useXMLConfig) {
+      return LoggerFactory.getLogger(loggerName);
+    }
+
+    if (loggerConfig == null || loggerContext == null || configuration == null) {
+      throw new NullPointerException(
+          "PegasusRollingFileLogger hasn't been initialized successfully ");
+    }
+
+    // addLogger is volatile
     configuration.addLogger(loggerName, loggerConfig);
     loggerContext.updateLoggers(configuration);
     return LoggerFactory.getLogger(loggerName);

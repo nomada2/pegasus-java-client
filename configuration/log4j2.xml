@@ -10,6 +10,7 @@
       <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n"/>
     </File>
 
+    <!--if name = pegasusRolling, the pegasus custom log will be invalid though you use `LogWrapper`-->
     <RollingFile name="RollingFile" fileName="rolling_log/pegasus.log"
       filePattern="${sys:user.home}/logs/$${date:yyyy-MM}/warn-%d{yyyy-MM-dd}-%i.log"
       immediateFlush="true" createOnDemand="true">
