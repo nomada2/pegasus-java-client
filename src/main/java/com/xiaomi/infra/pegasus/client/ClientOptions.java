@@ -37,6 +37,7 @@ public class ClientOptions {
   public static final boolean DEFAULT_ENABLE_PERF_COUNTER = false;
   public static final String DEFAULT_FALCON_PERF_COUNTER_TAGS = "";
   public static final Duration DEFAULT_FALCON_PUSH_INTERVAL = Duration.ofSeconds(10);
+  public static final String DEFAULT_PEGASUS_LOG_PATH = "";
 
   private final String metaServers;
   private final Duration operationTimeout;
@@ -44,6 +45,7 @@ public class ClientOptions {
   private final boolean enablePerfCounter;
   private final String falconPerfCounterTags;
   private final Duration falconPushInterval;
+  private final String pegasusLogPath;
 
   protected ClientOptions(Builder builder) {
     this.metaServers = builder.metaServers;
@@ -52,6 +54,7 @@ public class ClientOptions {
     this.enablePerfCounter = builder.enablePerfCounter;
     this.falconPerfCounterTags = builder.falconPerfCounterTags;
     this.falconPushInterval = builder.falconPushInterval;
+    this.pegasusLogPath = builder.pegasusLogPath;
   }
 
   protected ClientOptions(ClientOptions original) {
@@ -61,6 +64,7 @@ public class ClientOptions {
     this.enablePerfCounter = original.isEnablePerfCounter();
     this.falconPerfCounterTags = original.getFalconPerfCounterTags();
     this.falconPushInterval = original.getFalconPushInterval();
+    this.pegasusLogPath = original.getPegasusLogPath();
   }
 
   /**
@@ -103,7 +107,8 @@ public class ClientOptions {
           && this.asyncWorkers == clientOptions.asyncWorkers
           && this.enablePerfCounter == clientOptions.enablePerfCounter
           && this.falconPerfCounterTags.equals(clientOptions.falconPerfCounterTags)
-          && this.falconPushInterval.toMillis() == clientOptions.falconPushInterval.toMillis();
+          && this.falconPushInterval.toMillis() == clientOptions.falconPushInterval.toMillis()
+          && this.pegasusLogPath.equals(clientOptions.pegasusLogPath);
     }
     return false;
   }
@@ -125,6 +130,8 @@ public class ClientOptions {
         + '\''
         + ", falconPushInterval(s)="
         + falconPushInterval.getSeconds()
+        + ", pegasusLogPath="
+        + pegasusLogPath
         + '}';
   }
 
@@ -136,6 +143,7 @@ public class ClientOptions {
     private boolean enablePerfCounter = DEFAULT_ENABLE_PERF_COUNTER;
     private String falconPerfCounterTags = DEFAULT_FALCON_PERF_COUNTER_TAGS;
     private Duration falconPushInterval = DEFAULT_FALCON_PUSH_INTERVAL;
+    private String pegasusLogPath = DEFAULT_PEGASUS_LOG_PATH;
 
     protected Builder() {}
 
@@ -210,6 +218,21 @@ public class ClientOptions {
      */
     public Builder falconPushInterval(Duration falconPushInterval) {
       this.falconPushInterval = falconPushInterval;
+      return this;
+    }
+
+    /**
+     * The pegasus custom log path. Defaults to empty string, see {@link #DEFAULT_PEGASUS_LOG_PATH}.
+     * pegasusLogPath = "" user will use default pegasus log config and path =
+     * "project_dir/log/pegasus/pegasus_client.log" pegasusLogPath = "false" user will not use
+     * pegasus custom log config and load the user log config pegasusLogPath = "{path}" user will
+     * use pegasus log config and path = {path}
+     *
+     * @param pegasusLogPath pegasusLogPath
+     * @return {@code this}
+     */
+    public Builder pegasusLogPath(String pegasusLogPath) {
+      this.pegasusLogPath = pegasusLogPath;
       return this;
     }
 
@@ -297,5 +320,18 @@ public class ClientOptions {
    */
   public Duration getFalconPushInterval() {
     return falconPushInterval;
+  }
+
+  /**
+   * The pegasus custom log path. Defaults to empty string, see {@link #DEFAULT_PEGASUS_LOG_PATH}.
+   * pegasusLogPath = "" user will use default pegasus log config and path =
+   * "project_dir/log/pegasus/pegasus_client.log" pegasusLogPath = "false" user will not use pegasus
+   * custom log config and load the user log config pegasusLogPath = "{path}" user will use pegasus
+   * log config and path = {path}
+   *
+   * @return pegasusLogPath
+   */
+  public String getPegasusLogPath() {
+    return pegasusLogPath;
   }
 }

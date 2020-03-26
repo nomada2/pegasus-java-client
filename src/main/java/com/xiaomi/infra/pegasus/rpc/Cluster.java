@@ -28,6 +28,9 @@ public abstract class Cluster {
   public static final String PEGASUS_PUSH_COUNTER_INTERVAL_SECS_KEY = "push_counter_interval_secs";
   public static final String PEGASUS_PUSH_COUNTER_INTERVAL_SECS_DEF = "60";
 
+  public static final String PEGASUS_CUSTOM_LOG_PATH_KEY = "pegasus_custom_log_path";
+  public static final String PEGASUS_CUSTOM_LOG_PATH_DEF = "";
+
   public static Cluster createCluster(Properties config) throws IllegalArgumentException {
     int operatorTimeout =
         Integer.parseInt(
@@ -55,16 +58,22 @@ public abstract class Cluster {
         Integer.parseInt(
             config.getProperty(
                 PEGASUS_PUSH_COUNTER_INTERVAL_SECS_KEY, PEGASUS_PUSH_COUNTER_INTERVAL_SECS_DEF));
+
+    String customLogPath = config.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY);
+
     return new ClusterManager(
         operatorTimeout,
         asyncWorkers,
         enablePerfCounter,
         perfCounterTags,
         pushIntervalSecs,
-        address);
+        address,
+        customLogPath);
   }
 
   public abstract String[] getMetaList();
+
+  public abstract String getLogPath();
 
   public abstract Table openTable(String name, KeyHasher function, int backupRequestDelayMs)
       throws ReplicationException, TException;

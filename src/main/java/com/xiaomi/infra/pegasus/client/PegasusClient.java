@@ -5,6 +5,8 @@ package com.xiaomi.infra.pegasus.client;
 
 import com.xiaomi.infra.pegasus.rpc.Cluster;
 import com.xiaomi.infra.pegasus.rpc.KeyHasher;
+import com.xiaomi.infra.pegasus.tools.LogWrapper;
+import com.xiaomi.infra.pegasus.tools.LoggerOptions;
 import com.xiaomi.infra.pegasus.tools.Tools;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -14,14 +16,13 @@ import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author qinzuoyan
  *     <p>Implementation of {@link PegasusClientInterface}.
  */
 public class PegasusClient implements PegasusClientInterface {
-  private static final Logger LOGGER = LoggerFactory.getLogger(PegasusClient.class);
+  private static Logger LOGGER = LogWrapper.getRollingFileLogger(PegasusClient.class);
 
   private final Properties config;
   private final ConcurrentHashMap<String, PegasusTable> tableMap;
@@ -72,7 +73,8 @@ public class PegasusClient implements PegasusClientInterface {
         Cluster.PEGASUS_OPERATION_TIMEOUT_KEY,
         Cluster.PEGASUS_ASYNC_WORKERS_KEY,
         Cluster.PEGASUS_ENABLE_PERF_COUNTER_KEY,
-        Cluster.PEGASUS_PERF_COUNTER_TAGS_KEY
+        Cluster.PEGASUS_PERF_COUNTER_TAGS_KEY,
+        Cluster.PEGASUS_CUSTOM_LOG_PATH_KEY
       };
 
   // configPath could be:
@@ -88,6 +90,21 @@ public class PegasusClient implements PegasusClientInterface {
     this.cluster = Cluster.createCluster(config);
     this.tableMap = new ConcurrentHashMap<String, PegasusTable>();
     this.tableMapLock = new Object();
+    initPegasusLog(cluster.getLogPath());
+  }
+
+  private void initPegasusLog(String logPath) {
+    if (logPath.equals("")) {
+      LOGGER = LogWrapper.getRollingFileLogger(PegasusClient.class);
+    } else if (logPath.equals("false")) {
+      LoggerOptions loggerOptions = new LoggerOptions();
+      loggerOptions.setEnablePegasusCustomLog(false);
+      LOGGER = LogWrapper.getRollingFileLogger(loggerOptions, PegasusClient.class);
+    } else {
+      LoggerOptions loggerOptions = new LoggerOptions();
+      loggerOptions.setRollingFileSaveName(logPath);
+      LOGGER = LogWrapper.getRollingFileLogger(loggerOptions, PegasusClient.class);
+    }
     LOGGER.info(getConfigurationString());
   }
 
