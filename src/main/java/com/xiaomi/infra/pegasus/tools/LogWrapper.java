@@ -52,11 +52,11 @@ public class LogWrapper {
         return singletonPegasusLogger.getLogger(clazz.getName());
       }
 
+      LoggerOptions loggerOptions = new LoggerOptions();
       try {
         Properties properties = PConfigUtil.loadConfiguration("resource:///pegasus.properties");
         String logPath =
             properties.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY, PEGASUS_CUSTOM_LOG_PATH_DEF);
-        LoggerOptions loggerOptions = new LoggerOptions();
 
         if (logPath.equals("false")) {
           loggerOptions.setEnablePegasusCustomLog(false);
@@ -67,7 +67,7 @@ public class LogWrapper {
         LoggerFactory.getLogger(LogWrapper.class)
             .warn(
                 "config resource not found: resource:///pegasus.properties. will use default config: pegasus client log path = "
-                    + loggerOptions.getRollingFileSaveName());
+                    + PEGASUS_CUSTOM_LOG_PATH_DEF);
       }
       singletonPegasusLogger = createRollingFileAppender(loggerOptions);
       return singletonPegasusLogger.getLogger(clazz.getName());
