@@ -6,7 +6,6 @@ package com.xiaomi.infra.pegasus.client;
 import com.xiaomi.infra.pegasus.rpc.Cluster;
 import com.xiaomi.infra.pegasus.rpc.KeyHasher;
 import com.xiaomi.infra.pegasus.tools.LogWrapper;
-import com.xiaomi.infra.pegasus.tools.LoggerOptions;
 import com.xiaomi.infra.pegasus.tools.Tools;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -90,21 +89,6 @@ public class PegasusClient implements PegasusClientInterface {
     this.cluster = Cluster.createCluster(config);
     this.tableMap = new ConcurrentHashMap<String, PegasusTable>();
     this.tableMapLock = new Object();
-    initPegasusLog(cluster.getLogPath());
-  }
-
-  private void initPegasusLog(String logPath) {
-    if (logPath.equals("")) {
-      LOGGER = LogWrapper.getRollingFileLogger(PegasusClient.class);
-    } else if (logPath.equals("false")) {
-      LoggerOptions loggerOptions = new LoggerOptions();
-      loggerOptions.setEnablePegasusCustomLog(false);
-      LOGGER = LogWrapper.getRollingFileLogger(loggerOptions, PegasusClient.class);
-    } else {
-      LoggerOptions loggerOptions = new LoggerOptions();
-      loggerOptions.setRollingFileSaveName(logPath);
-      LOGGER = LogWrapper.getRollingFileLogger(loggerOptions, PegasusClient.class);
-    }
     LOGGER.info(getConfigurationString());
   }
 

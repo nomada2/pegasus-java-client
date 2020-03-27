@@ -27,7 +27,6 @@ public class ClusterManager extends Cluster {
   private int operationTimeout;
   private int retryDelay;
   private boolean enableCounter;
-  private String logPath;
 
   private ConcurrentHashMap<rpc_address, ReplicaSession> replicaSessions;
   private EventLoopGroup metaGroup; // group used for handle meta logic
@@ -50,8 +49,7 @@ public class ClusterManager extends Cluster {
       boolean enableCounter,
       String perfCounterTags,
       int pushIntervalSecs,
-      String[] address_list,
-      String customLogPath)
+      String[] address_list)
       throws IllegalArgumentException {
     setTimeout(timeout);
     this.enableCounter = enableCounter;
@@ -65,7 +63,6 @@ public class ClusterManager extends Cluster {
     tableGroup = getEventLoopGroupInstance(1);
 
     metaList = address_list;
-    this.logPath = customLogPath;
     // the constructor of meta session is depend on the replicaSessions,
     // so the replicaSessions should be initialized earlier
     metaSession = new MetaSession(this, address_list, timeout, 10, metaGroup);
@@ -131,11 +128,6 @@ public class ClusterManager extends Cluster {
   @Override
   public String[] getMetaList() {
     return metaList;
-  }
-
-  @Override
-  public String getLogPath() {
-    return logPath;
   }
 
   @Override

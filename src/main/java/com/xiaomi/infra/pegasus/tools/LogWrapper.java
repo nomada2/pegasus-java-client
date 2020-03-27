@@ -3,7 +3,10 @@
 // can be found in the LICENSE file in the root directory of this source tree.
 package com.xiaomi.infra.pegasus.tools;
 
+import com.xiaomi.infra.pegasus.client.PConfigUtil;
+import com.xiaomi.infra.pegasus.client.PException;
 import java.nio.charset.Charset;
+import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.RollingFileAppender;
@@ -33,19 +36,13 @@ import org.slf4j.LoggerFactory;
 // by
 // `pegasus.properties`.
 public class LogWrapper {
-
+  public static final String PEGASUS_CUSTOM_LOG_PATH_KEY = "pegasus_custom_log_path";
+  public static final String PEGASUS_CUSTOM_LOG_PATH_DEF = "";
   private static final Object singletonLock = new Object();
-  private static final LoggerOptions defaultLoggerOptions = new LoggerOptions();
+  private static final LoggerOptions loggerOptions = new LoggerOptions();
   private static PegasusRollingFileLogger singletonPegasusLogger;
 
   public static Logger getRollingFileLogger(Class clazz) {
-    return getRollingFileLogger(defaultLoggerOptions, clazz);
-  }
-
-  public static Logger getRollingFileLogger(LoggerOptions loggerOptions, Class clazz) {
-    if (!loggerOptions.isEnablePegasusCustomLog()) {
-      return LoggerFactory.getLogger(clazz);
-    }
 
     if (singletonPegasusLogger != null) {
       return singletonPegasusLogger.getLogger(clazz.getName());
@@ -56,12 +53,36 @@ public class LogWrapper {
         return singletonPegasusLogger.getLogger(clazz.getName());
       }
 
-      singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+      try {
+        Properties properties = PConfigUtil.loadConfiguration("resource:///pegasus.properties");
+        String logPath =
+            properties.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY, PEGASUS_CUSTOM_LOG_PATH_DEF);
+        if (logPath.equals("")) {
+          singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+        } else if (logPath.equals("false")) {
+          loggerOptions.setEnablePegasusCustomLog(false);
+          singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+        } else {
+          loggerOptions.setRollingFileSaveName(logPath);
+          singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+        }
+      } catch (PException e) {
+        singletonPegasusLogger = createRollingFileAppender(loggerOptions);
+        singletonPegasusLogger
+            .getLogger(LogWrapper.class.getName())
+            .warn(
+                "config resource not found: resource:///pegasus.properties. will use default config: pegasus_log_path = "
+                    + loggerOptions.getRollingFileSaveName());
+      }
       return singletonPegasusLogger.getLogger(clazz.getName());
     }
   }
 
   private static PegasusRollingFileLogger createRollingFileAppender(LoggerOptions loggerOptions) {
+
+    if (!loggerOptions.isEnablePegasusCustomLog()) {
+      return new PegasusRollingFileLogger(false);
+    }
 
     LoggerContext loggerContext = (LoggerContext) LogManager.getContext(false);
     Configuration configuration = loggerContext.getConfiguration();
@@ -142,6 +163,8 @@ public class LogWrapper {
 
   static class PegasusRollingFileLogger {
 
+    public boolean isEnable;
+
     public LoggerConfig loggerConfig;
     public LoggerContext loggerContext;
     public Configuration configuration;
@@ -152,7 +175,15 @@ public class LogWrapper {
       this.loggerConfig = configuration.getLoggerConfig(appenderName);
     }
 
+    public PegasusRollingFileLogger(boolean isEnable) {
+      this.isEnable = isEnable;
+    }
+
     public Logger getLogger(String loggerName) {
+      if (!isEnable) {
+        return LoggerFactory.getLogger(loggerName);
+      }
+
       if (loggerConfig == null || loggerContext == null || configuration == null) {
         throw new NullPointerException(
             "PegasusRollingFileLogger hasn't been initialized successfully ");
