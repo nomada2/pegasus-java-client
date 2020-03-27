@@ -59,7 +59,8 @@ public abstract class Cluster {
             config.getProperty(
                 PEGASUS_PUSH_COUNTER_INTERVAL_SECS_KEY, PEGASUS_PUSH_COUNTER_INTERVAL_SECS_DEF));
 
-    String customLogPath = config.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY);
+    String customLogPath =
+        config.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY, PEGASUS_CUSTOM_LOG_PATH_DEF);
 
     return new ClusterManager(
         operatorTimeout,
