@@ -39,7 +39,6 @@ public class LogWrapper {
   public static final String PEGASUS_CUSTOM_LOG_PATH_KEY = "pegasus_custom_log_path";
   public static final String PEGASUS_CUSTOM_LOG_PATH_DEF = "log/pegasus/pegasus.client.log";
   private static final Object singletonLock = new Object();
-  private static final LoggerOptions loggerOptions = new LoggerOptions();
   private static PegasusRollingFileLogger singletonPegasusLogger;
 
   public static Logger getRollingFileLogger(Class clazz) {
@@ -57,6 +56,7 @@ public class LogWrapper {
         Properties properties = PConfigUtil.loadConfiguration("resource:///pegasus.properties");
         String logPath =
             properties.getProperty(PEGASUS_CUSTOM_LOG_PATH_KEY, PEGASUS_CUSTOM_LOG_PATH_DEF);
+        LoggerOptions loggerOptions = new LoggerOptions();
 
         if (logPath.equals("false")) {
           loggerOptions.setEnablePegasusCustomLog(false);
