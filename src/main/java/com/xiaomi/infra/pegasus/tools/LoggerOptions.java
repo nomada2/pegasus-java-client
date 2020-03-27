@@ -7,12 +7,12 @@ public class LoggerOptions {
   private boolean enablePegasusCustomLog = true;
   // PatternLayout
   private String layoutPattern = "%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n";
-  // DeleteAction
+  // DeleteAction: the action of delete one log file
   // deleteFileAge means reserve time, P7D means 7 days, detail see "Duration.class"
   private String deleteFileAge = "P7D";
   private String deleteFilePath = "log/pegasus";
   private String deleteFileNamePattern = "pegasus.client.log*";
-  // RolloverStrategy
+  // RolloverStrategy: the reserve file number
   private String maxFileNumber = "10";
   private String minFileNumber = "1";
   // SizeBasedTriggeringPolicy
