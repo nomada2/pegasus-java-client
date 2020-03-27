@@ -63,7 +63,7 @@ public class LogWrapper {
 
   private static PegasusRollingFileLogger createRollingFileAppender(LoggerOptions loggerOptions) {
 
-    LoggerContext loggerContext = (LoggerContext) LogManager.getContext(false /*todo*/);
+    LoggerContext loggerContext = (LoggerContext) LogManager.getContext(false);
     Configuration configuration = loggerContext.getConfiguration();
 
     PatternLayout patternLayout =
@@ -74,7 +74,7 @@ public class LogWrapper {
             .build();
 
     PathCondition lastModified =
-        IfLastModified.createAgeCondition(Duration.parse(loggerOptions.getDeleteAge()), null);
+        IfLastModified.createAgeCondition(Duration.parse(loggerOptions.getDeleteFileAge()), null);
     PathCondition fileNameMatch =
         IfFileName.createNameCondition(
             loggerOptions.getDeleteFileNamePattern(),
@@ -163,9 +163,5 @@ public class LogWrapper {
       loggerContext.updateLoggers(configuration);
       return LoggerFactory.getLogger(loggerName);
     }
-  }
-
-  public static void main(String[] args) {
-    Logger logger = LogWrapper.getRollingFileLogger(String.class);
   }
 }

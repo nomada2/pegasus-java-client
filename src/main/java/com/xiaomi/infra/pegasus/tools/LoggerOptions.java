@@ -8,14 +8,15 @@ public class LoggerOptions {
   // PatternLayout
   private String layoutPattern = "%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n";
   // DeleteAction
-  private String deleteAge = "P7D";
+  // deleteFileAge means reserve time, P7D means 7 days, detail see "Duration.class"
+  private String deleteFileAge = "P7D";
   private String deleteFilePath = "log/pegasus";
   private String deleteFileNamePattern = "pegasus.client.log*";
   // RolloverStrategy
-  private String maxFileNumber = "5";
+  private String maxFileNumber = "10";
   private String minFileNumber = "1";
   // SizeBasedTriggeringPolicy
-  private String singleFileSize = "10";
+  private String singleFileSize = "102400";
   // RollingFileAppender
   private String rollingFileAppenderName = "pegasusRolling-" + System.currentTimeMillis();
   private String rollingFileSaveName = "log/pegasus/pegasus.client.log";
@@ -44,8 +45,8 @@ public class LoggerOptions {
     return layoutPattern;
   }
 
-  public String getDeleteAge() {
-    return deleteAge;
+  public String getDeleteFileAge() {
+    return deleteFileAge;
   }
 
   public String getDeleteFilePath() {
