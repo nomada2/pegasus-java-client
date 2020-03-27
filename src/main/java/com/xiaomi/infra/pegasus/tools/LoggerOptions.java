@@ -28,9 +28,20 @@ public class LoggerOptions {
   }
 
   public void setRollingFileSaveName(String rollingFileSaveName) {
+    if (rollingFileSaveName.endsWith("/")) {
+      throw new IllegalArgumentException("The log file name is illegal!");
+    }
+
     this.rollingFileSaveName = rollingFileSaveName;
-    // TODO rollingFileSavePattern, deleteFilePath, deleteFileNamePattern need be re-set base
-    // rollingFileSaveName
+    String[] fileNameSplit = rollingFileSaveName.split("/");
+    String fileName = fileNameSplit[fileNameSplit.length - 1];
+    if (rollingFileSaveName.length() == fileName.length()) {
+      this.deleteFilePath = "./";
+    } else {
+      this.deleteFilePath =
+          rollingFileSaveName.substring(0, rollingFileSaveName.length() - fileName.length());
+    }
+    this.deleteFileNamePattern = fileName + "*";
   }
 
   public boolean isEnablePegasusCustomLog() {
