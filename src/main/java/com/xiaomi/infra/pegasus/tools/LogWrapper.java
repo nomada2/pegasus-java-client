@@ -164,4 +164,8 @@ public class LogWrapper {
       return LoggerFactory.getLogger(loggerName);
     }
   }
+
+  public static void main(String[] args) {
+    Logger logger = LogWrapper.getRollingFileLogger(String.class);
+  }
 }
